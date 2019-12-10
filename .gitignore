@@ -1,0 +1,6 @@
+*.html
+*.csv
+*.json
+gower/.ipynb_checkpoints/
+gower/__pycache__/
+.ipynb_checkpoints/
