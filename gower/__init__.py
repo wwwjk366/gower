@@ -1,1 +1,1 @@
-from .gower_dist import gower_dist
+from .gower_dist import gower_matrix, gower_topn

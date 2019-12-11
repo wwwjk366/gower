@@ -2,62 +2,52 @@ from scipy.sparse import issparse
 import numpy as np
 import pandas as pd
 
-# Vectorized Version
-def gower_dist(X, Y=None, feature_weight=None, categorical_features=None):
+def gower_matrix(data_x, data_y=None, weight=None, cat_features=None):  
     
-    if issparse(X) or issparse(Y):
-        raise TypeError("Sparse matrices are not supported for gower distance")
-        
-    y_none = Y is None
-        
-    # It is necessary to convert to ndarray in advance to define the dtype
-    if not isinstance(X, np.ndarray):
-        X = np.asarray(X)
-
-    array_type = np.object
-    # this is necessary as strangelly the validator is rejecting numeric
-    # arrays with NaN
-    if  np.issubdtype(X.dtype, np.number) and (np.isfinite(X.sum()) or np.isfinite(X).all()):
-        array_type = type(np.zeros(1,X.dtype).flat[0])
+    # function checks
+    X = data_x
+    if data_y is None: Y = data_x 
+    else: Y = data_y 
+    if not isinstance(X, np.ndarray): 
+        if not np.array_equal(X.columns, Y.columns): raise TypeError("X and Y must have same columns!")   
+    else: 
+         if not X.shape[1] == Y.shape[1]: raise TypeError("X and Y must have same y-dim!")  
+                
+    if issparse(X) or issparse(Y): raise TypeError("Sparse matrices are not supported!")        
+            
+    x_n_rows, x_n_cols = X.shape
+    y_n_rows, y_n_cols = Y.shape 
     
-    X, Y = check_pairwise_arrays(X, Y, precomputed=False, dtype=array_type)
-    
-    n_rows, n_cols = X.shape
-    
-    if categorical_features is None:
-        categorical_features = np.zeros(n_cols, dtype=bool)
-        for col in range(n_cols):
-            # In numerical columns, None is converted to NaN,
-            # and the type of NaN is recognized as a number subtype
-            if not np.issubdtype(type(X[0, col]), np.number):
-                categorical_features[col]=True
+    if cat_features is None:
+        if not isinstance(X, np.ndarray): 
+            is_number = np.vectorize(lambda x: not np.issubdtype(x, np.number))
+            cat_features = is_number(X.dtypes)    
+        else:
+            cat_features = np.zeros(x_n_cols, dtype=bool)
+            for col in range(x_n_cols):
+                if not np.issubdtype(type(X[0, col]), np.number):
+                    cat_features[col]=True
     else:          
-        categorical_features = np.array(categorical_features)
+        cat_features = np.array(cat_features)
     
+    # print(cat_features)
     
-    #if categorical_features.dtype == np.int32:
-    if np.issubdtype(categorical_features.dtype, np.int):
-        new_categorical_features = np.zeros(n_cols, dtype=bool)
-        new_categorical_features[categorical_features] = True
-        categorical_features = new_categorical_features
+    if not isinstance(X, np.ndarray): X = np.asarray(X)
+    if not isinstance(Y, np.ndarray): Y = np.asarray(Y)
     
-    print(categorical_features)
-  
-    # Categorical columns
-    X_cat =  X[:,categorical_features]
+    Z = np.concatenate((X,Y))
     
-    # Numerical columns
-    X_num = X[:,np.logical_not(categorical_features)]
-    ranges_of_numeric = None
-    max_of_numeric = None
+    x_index = range(0,x_n_rows)
+    y_index = range(x_n_rows,x_n_rows+y_n_rows)
     
-        
-    # Calculates the normalized ranges and max values of numeric values
-    _ ,num_cols=X_num.shape
-    ranges_of_numeric = np.zeros(num_cols)
-    max_of_numeric = np.zeros(num_cols)
+    Z_num = Z[:,np.logical_not(cat_features)]
+    
+    num_cols = Z_num.shape[1]
+    num_ranges = np.zeros(num_cols)
+    num_max = np.zeros(num_cols)
+    
     for col in range(num_cols):
-        col_array = X_num[:, col].astype(np.float32) 
+        col_array = Z_num[:, col].astype(np.float32) 
         max = np.nanmax(col_array)
         min = np.nanmin(col_array)
      
@@ -65,71 +55,85 @@ def gower_dist(X, Y=None, feature_weight=None, categorical_features=None):
             max = 0.0
         if np.isnan(min):
             min = 0.0
-        max_of_numeric[col] = max
-        ranges_of_numeric[col] = (1 - min / max) if (max != 0) else 0.0
-
+        num_max[col] = max
+        num_ranges[col] = (1 - min / max) if (max != 0) else 0.0
 
     # This is to normalize the numeric values between 0 and 1.
-    X_num = np.divide(X_num ,max_of_numeric,out=np.zeros_like(X_num), where=max_of_numeric!=0)
-
+    Z_num = np.divide(Z_num ,num_max,out=np.zeros_like(Z_num), where=num_max!=0)
+    Z_cat = Z[:,cat_features]
     
-    if feature_weight is None:
-        feature_weight = np.ones(n_cols)
+    if weight is None:
+        weight = np.ones(Z.shape[1])
         
-    feature_weight_cat=feature_weight[categorical_features]
-    feature_weight_num=feature_weight[np.logical_not(categorical_features)]
+    #print(weight)    
     
-    
-    y_n_rows, _ = Y.shape
-    
-    dm = np.zeros((n_rows, y_n_rows), dtype=np.float32)
+    weight_cat=weight[cat_features]
+    weight_num=weight[np.logical_not(cat_features)]   
         
-    feature_weight_sum = feature_weight.sum()
-
-    Y_cat=None
-    Y_num=None
+    out = np.zeros((x_n_rows, y_n_rows), dtype=np.float32)
+        
+    weight_sum = weight.sum()
     
-    if not y_none:
-        Y_cat = Y[:,categorical_features]
-        Y_num = Y[:,np.logical_not(categorical_features)]
-        # This is to normalize the numeric values between 0 and 1.
-        Y_num = np.divide(Y_num ,max_of_numeric,out=np.zeros_like(Y_num), where=max_of_numeric!=0)
-    else:
-        Y_cat=X_cat
-        Y_num = X_num
-        
-    for i in range(n_rows):
-        j_start= i
-        
-        # for non square results
-        if n_rows != y_n_rows:
+    X_cat = Z_cat[x_index,]
+    X_num = Z_num[x_index,]
+    Y_cat = Z_cat[y_index,]
+    Y_num = Z_num[y_index,]
+    
+   # print(X_cat,X_num,Y_cat,Y_num)
+    
+    for i in range(x_n_rows):          
+        j_start= i        
+        if x_n_rows != y_n_rows:
             j_start = 0
-
-      
-        Y_cat[j_start:n_rows,:]
-        Y_num[j_start:n_rows,:]
-        result= gower_dist_row(X_cat[i,:], X_num[i,:],Y_cat[j_start:n_rows,:],
-                                    Y_num[j_start:n_rows,:],feature_weight_cat,feature_weight_num,
-                                    feature_weight_sum,categorical_features,ranges_of_numeric,
-                                    max_of_numeric) 
-        dm[i,j_start:]=result
-        dm[i:,j_start]=result
+        # call the main function
+        res = gower_get(X_cat[i,:], 
+                          X_num[i,:],
+                          Y_cat[j_start:y_n_rows,:],
+                          Y_num[j_start:y_n_rows,:],
+                          weight_cat,
+                          weight_num,
+                          weight_sum,
+                          cat_features,
+                          num_ranges,
+                          num_max) 
+        #print(res)
+        out[i,j_start:]=res
+        if x_n_rows == y_n_rows: out[i:,j_start]=res
         
+    return out
 
-    return dm
 
-
-def gower_dist_row(xi_cat,xi_num,xj_cat,xj_num,feature_weight_cat,feature_weight_num,
-                        feature_weight_sum,categorical_features,ranges_of_numeric,max_of_numeric ):
+def gower_get(xi_cat,xi_num,xj_cat,xj_num,feature_weight_cat,
+              feature_weight_num,feature_weight_sum,categorical_features,
+              ranges_of_numeric,max_of_numeric ):
+    
     # categorical columns
     sij_cat = np.where(xi_cat == xj_cat,np.zeros_like(xi_cat),np.ones_like(xi_cat))
     sum_cat = np.multiply(feature_weight_cat,sij_cat).sum(axis=1) 
 
     # numerical columns
-    abs_delta=np.absolute( xi_num-xj_num)
+    abs_delta=np.absolute(xi_num-xj_num)
     sij_num=np.divide(abs_delta, ranges_of_numeric, out=np.zeros_like(abs_delta), where=ranges_of_numeric!=0)
 
     sum_num = np.multiply(feature_weight_num,sij_num).sum(axis=1)
     sums= np.add(sum_cat,sum_num)
     sum_sij = np.divide(sums,feature_weight_sum)
+    
     return sum_sij
+
+def smallest_indices(ary, n):
+    """Returns the n largest indices from a numpy array."""
+    n += 1
+    flat = np.nan_to_num(ary.flatten(), nan=999)
+    indices = np.argpartition(-flat, -n)[-n:]
+    indices = indices[np.argsort(flat[indices])]
+    indices = np.delete(indices,0,0)
+    values = flat[indices]
+    return {'index': indices, 'values': values}
+
+def gower_topn(data_x, data_y=None, weight=None, cat_features=None, n = 5):
+    
+    if data_x.shape[0] >= 2: TypeError("Only support `data_x` of 1 row. ")  
+    dm = gower_matrix(data_x, data_y, weight, cat_features)
+          
+    return smallest_indices(np.nan_to_num(dm[0], nan=1),n)
