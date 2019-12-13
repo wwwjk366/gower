@@ -1,6 +1,7 @@
 <!-- badges: start -->
 [![Build Status](https://travis-ci.com/wwwjk366/gower.svg?branch=master)](https://travis-ci.com/wwwjk366/gower)
 [![PyPI version](https://badge.fury.io/py/gower.svg)](https://pypi.org/project/gower/)
+[![PyPI downloads](https://img.shields.io/pypi/dm/gower)](https://pypi.org/project/gower/)
 <!-- badges: end -->
 
 # Introduction
