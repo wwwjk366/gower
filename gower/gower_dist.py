@@ -123,11 +123,11 @@ def gower_get(xi_cat,xi_num,xj_cat,xj_num,feature_weight_cat,
 
 def smallest_indices(ary, n):
     """Returns the n largest indices from a numpy array."""
-    n += 1
+    #n += 1
     flat = np.nan_to_num(ary.flatten(), nan=999)
     indices = np.argpartition(-flat, -n)[-n:]
     indices = indices[np.argsort(flat[indices])]
-    indices = np.delete(indices,0,0)
+    #indices = np.delete(indices,0,0)
     values = flat[indices]
     return {'index': indices, 'values': values}
 
