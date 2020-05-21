@@ -10,6 +10,8 @@ Gower's distance calculation in Python. Gower Distance is a distance measure tha
 
 More details and examples can be found on my personal website here:(https://www.thinkdatascience.com/post/2019-12-16-introducing-python-package-gower/)
 
+Core functions are wrote by [Marcelo Beckmann](https://sourceforge.net/projects/gower-distance-4python/files/).
+
 # Examples
 
 ## Installation
