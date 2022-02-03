@@ -99,7 +99,8 @@ def gower_matrix(data_x, data_y=None, weight=None, cat_features=None):
         #print(res)
         out[i,j_start:]=res
         if x_n_rows == y_n_rows: out[i:,j_start]=res
-        
+    
+    out[np.isnan(out)] = 0
     return out
 
 
