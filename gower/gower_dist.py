@@ -13,7 +13,15 @@ def gower_matrix(data_x, data_y=None, weight=None, cat_features=None):
     else: 
          if not X.shape[1] == Y.shape[1]: raise TypeError("X and Y must have same y-dim!")  
                 
-    if issparse(X) or issparse(Y): raise TypeError("Sparse matrices are not supported!")        
+    if issparse(X) or issparse(Y): raise TypeError("Sparse matrices are not supported!")
+
+    # convert ordered categorical data to numerical (scaled values in interval 0->1)
+    if isinstance(X, pd.DataFrame):
+        X = X.copy()
+        for column_name,column in X.iteritems():
+            if isinstance(column.dtype, pd.CategoricalDtype) and column.dtype.ordered:
+                X[column_name] = column.cat.codes.astype('float64') / (len(column.cat.categories) - 1)
+        Y = X
             
     x_n_rows, x_n_cols = X.shape
     y_n_rows, y_n_cols = Y.shape 
