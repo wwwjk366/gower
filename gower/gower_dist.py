@@ -64,7 +64,7 @@ def gower_matrix(data_x, data_y=None, weight=None, cat_features=None):
         if np.isnan(min):
             min = 0.0
         num_max[col] = max
-        num_ranges[col] = (1 - min / max) if (max != 0) else 0.0
+        num_ranges[col] = abs(1 - min / max) if (max != 0) else 0.0
 
     # This is to normalize the numeric values between 0 and 1.
     Z_num = np.divide(Z_num ,num_max,out=np.zeros_like(Z_num), where=num_max!=0)
