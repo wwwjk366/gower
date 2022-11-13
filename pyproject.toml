@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gower"
+version = "0.1.2"
+authors = [
+  { name="Michael Yan", email="author@example.com" },
+  { name="Dominic D"}
+]
+description = "Python implementation of Gowers distance, pairwise between records in two data sets"
+readme = "README.md"
+requires-python = ">=2.7"
+keywords=['gower', 'distance', 'matrix']
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/wwwjk366/gower"

@@ -13,15 +13,7 @@ def gower_matrix(data_x, data_y=None, weight=None, cat_features=None):
     else: 
          if not X.shape[1] == Y.shape[1]: raise TypeError("X and Y must have same y-dim!")  
                 
-    if issparse(X) or issparse(Y): raise TypeError("Sparse matrices are not supported!")
-
-    # convert ordered categorical data to numerical (scaled values in interval 0->1)
-    if isinstance(X, pd.DataFrame):
-        X = X.copy()
-        for column_name,column in X.iteritems():
-            if isinstance(column.dtype, pd.CategoricalDtype) and column.dtype.ordered:
-                X[column_name] = column.cat.codes.astype('float64') / (len(column.cat.categories) - 1)
-        Y = X
+    if issparse(X) or issparse(Y): raise TypeError("Sparse matrices are not supported!")        
             
     x_n_rows, x_n_cols = X.shape
     y_n_rows, y_n_cols = Y.shape 
@@ -64,7 +56,7 @@ def gower_matrix(data_x, data_y=None, weight=None, cat_features=None):
         if np.isnan(min):
             min = 0.0
         num_max[col] = max
-        num_ranges[col] = abs(1 - min / max) if (max != 0) else 0.0
+        num_ranges[col] = np.abs(1 - min / max) if (max != 0) else 0.0
 
     # This is to normalize the numeric values between 0 and 1.
     Z_num = np.divide(Z_num ,num_max,out=np.zeros_like(Z_num), where=num_max!=0)
@@ -116,19 +108,16 @@ def gower_get(xi_cat,xi_num,xj_cat,xj_num,feature_weight_cat,
               ranges_of_numeric,max_of_numeric ):
     
     # categorical columns
-    categorical_distance = lambda a,b: np.nan if (pd.isnull(a) or pd.isnull(b)) else a != b
-    sij_cat = np.vectorize(categorical_distance, otypes=['object'])(xi_cat,xj_cat)
-    sum_cat = np.nansum(np.multiply(feature_weight_cat,sij_cat), axis=1)
-    weights_cat = np.nansum(np.multiply(feature_weight_cat,np.logical_not(pd.isnull(sij_cat))), axis=1)
+    sij_cat = np.where(xi_cat == xj_cat,np.zeros_like(xi_cat),np.ones_like(xi_cat))
+    sum_cat = np.multiply(feature_weight_cat,sij_cat).sum(axis=1) 
 
     # numerical columns
     abs_delta=np.absolute(xi_num-xj_num)
     sij_num=np.divide(abs_delta, ranges_of_numeric, out=np.zeros_like(abs_delta), where=ranges_of_numeric!=0)
-    sum_num = np.nansum(np.multiply(feature_weight_num,sij_num), axis=1)
-    weights_num = np.nansum(np.multiply(feature_weight_num,np.logical_not(pd.isnull(sij_num))), axis=1)
 
+    sum_num = np.multiply(feature_weight_num,sij_num).sum(axis=1)
     sums= np.add(sum_cat,sum_num)
-    sum_sij = np.divide(sums,np.add(weights_cat,weights_num))
+    sum_sij = np.divide(sums,feature_weight_sum)
     
     return sum_sij
 

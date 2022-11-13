@@ -6,3 +6,6 @@ gower/__pycache__/
 .ipynb_checkpoints/
 gower.egg-info/
 dist/
+.idea/
+build/
+*.ipynb
