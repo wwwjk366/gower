@@ -187,7 +187,6 @@ def gower_get_loop(j_start_real,x_n_rows,y_n_rows,X_cat,X_num,Y_cat,Y_num,
                           cat_features,
                           num_ranges,
                           num_max) 
-        #result.append(res)
     
         out[i+j_start_real,j_start+j_start_real:]=res
         if x_n_rows == y_n_rows: out[i+j_start_real:,j_start+j_start_real]=res
@@ -195,11 +194,6 @@ def gower_get_loop(j_start_real,x_n_rows,y_n_rows,X_cat,X_num,Y_cat,Y_num,
     shm.close()
     return None
        
-        #print(res)
-#    if len(result) == 0:
-#        result = [np.array([np.nan])]
-#    return result 
-
 def gower_get(xi_cat,xi_num,xj_cat,xj_num,feature_weight_cat,
               feature_weight_num,feature_weight_sum,categorical_features,
               ranges_of_numeric,max_of_numeric ):
