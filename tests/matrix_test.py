@@ -51,3 +51,23 @@ def test_multiprocessing_large():
     
     return results
     
+    
+def test_multiprocessing_large_nominal():
+    results = []
+    for size in np.arange(10000,100000,10000):
+        X = np.random.random((size, 4))                                                  
+        Xn = np.random.randint(2, size=(X.shape[0],4))
+        X = np.concatenate((X,Xn), axis=1)
+        start_time = time.time()                                                 
+        aaa = gower.gower_matrix(X)
+        time_single = (time.time() - start_time)
+        print("Single thread--- %s seconds ---" % (time_single))
+        start_time = time.time()    
+        aaa_multi = gower.gower_matrix(X,n_jobs=-1)
+        time_multi = (time.time() - start_time)
+        print("Multithread --- %s seconds ---" % (time_multi))
+        assert aaa[0][1] == pytest.approx(aaa_multi[0][1], 0.001)
+        results.append([size, time_single,time_multi])
+    
+    return results
+    
