@@ -95,7 +95,7 @@ def gower_matrix(data_x, data_y=None, weight=None, cat_features=None, n_jobs=Non
         shm = shared_memory.SharedMemory(create=True, size=out.nbytes)
         shared_out = np.ndarray(out.shape, dtype=out.dtype, buffer=shm.buf)
         with Pool(n_jobs) as pool:
-            results_batched = pool.starmap(gower_get_loop, [b for b in bachifier(n_jobs, x_n_rows,
+            pool.starmap(gower_get_loop, [b for b in bachifier(n_jobs, x_n_rows,
                                                                     y_n_rows,
                                                                     X_cat,
                                                                     X_num,
@@ -192,7 +192,7 @@ def gower_get_loop(j_start_real,x_n_rows,y_n_rows,X_cat,X_num,Y_cat,Y_num,
         if x_n_rows == y_n_rows: out[i+j_start_real:,j_start+j_start_real]=res
 
     shm.close()
-    return None
+
        
 def gower_get(xi_cat,xi_num,xj_cat,xj_num,feature_weight_cat,
               feature_weight_num,feature_weight_sum,categorical_features,
