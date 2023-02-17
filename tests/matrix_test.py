@@ -47,6 +47,7 @@ def test_multiprocessing_large():
         time_multi = (time.time() - start_time)
         print("Size: %s Multithread --- %s seconds ---" % (size, time_multi))
         assert aaa[0][1] == pytest.approx(aaa_multi[0][1], 0.001)
+        assert (sum(sum(aaa-aaa_multi))) == pytest.approx(0, 0.001)
         results.append([size, time_single,time_multi])
     
     return results
@@ -59,14 +60,15 @@ def test_multiprocessing_large_nominal():
         Xn = np.random.randint(2, size=(X.shape[0],4))
         X = np.concatenate((X,Xn), axis=1)
         start_time = time.time()                                                 
-        aaa = gower.gower_matrix(X)
+        aaa = gower.gower_matrix(X,cat_features=[False]*4+[True]*4)
         time_single = (time.time() - start_time)
         print("Size: %s Single thread --- %s seconds ---" % (size,time_single))
         start_time = time.time()    
-        aaa_multi = gower.gower_matrix(X,n_jobs=-1)
+        aaa_multi = gower.gower_matrix(X,n_jobs=-1,cat_features=[False]*4+[True]*4)
         time_multi = (time.time() - start_time)
         print("Size: %s Multithread --- %s seconds ---" % (size, time_multi))
         assert aaa[0][1] == pytest.approx(aaa_multi[0][1], 0.001)
+        assert (sum(sum(aaa-aaa_multi))) == pytest.approx(0, 0.001)
         results.append([size, time_single,time_multi])
     
     return results
