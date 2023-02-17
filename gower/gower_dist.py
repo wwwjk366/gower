@@ -222,9 +222,9 @@ def smallest_indices(ary, n):
     values = flat[indices]
     return {'index': indices, 'values': values}
 
-def gower_topn(data_x, data_y=None, weight=None, cat_features=None, n = 5):
+def gower_topn(data_x, data_y=None, weight=None, cat_features=None, n = 5, n_jobs=None):
     
     if data_x.shape[0] >= 2: TypeError("Only support `data_x` of 1 row. ")  
-    dm = gower_matrix(data_x, data_y, weight, cat_features)
+    dm = gower_matrix(data_x, data_y, weight, cat_features, n_jobs=n_jobs)
           
     return smallest_indices(np.nan_to_num(dm[0], nan=1),n)
