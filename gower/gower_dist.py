@@ -1,8 +1,9 @@
 from scipy.sparse import issparse
 import numpy as np
 import pandas as pd
+from multiprocessing import cpu_count, Pool, shared_memory
 
-def gower_matrix(data_x, data_y=None, weight=None, cat_features=None):  
+def gower_matrix(data_x, data_y=None, weight=None, cat_features=None, n_jobs=None):  
     
     # function checks
     X = data_x
@@ -81,11 +82,101 @@ def gower_matrix(data_x, data_y=None, weight=None, cat_features=None):
     
    # print(X_cat,X_num,Y_cat,Y_num)
     
-    for i in range(x_n_rows):          
+    if n_jobs is None:
+        n_jobs = 1
+    elif n_jobs == -1:
+        n_jobs = cpu_count()
+    
+    n_jobs = np.min((n_jobs,x_n_rows))
+           
+    
+        
+    if n_jobs > 1:
+        shm = shared_memory.SharedMemory(create=True, size=out.nbytes)
+        shared_out = np.ndarray(out.shape, dtype=out.dtype, buffer=shm.buf)
+        with Pool(n_jobs) as pool:
+            pool.starmap(gower_get_loop, [b for b in bachifier(n_jobs, x_n_rows,
+                                                                    y_n_rows,
+                                                                    X_cat,
+                                                                    X_num,
+                                                                    Y_cat,
+                                                                    Y_num,
+                                                                    weight_cat,
+                                                                    weight_num,
+                                                                    weight_sum,
+                                                                    cat_features,
+                                                                    num_ranges,
+                                                                    num_max,shm.name)])  
+            out =shared_out.copy()
+            shm.close()
+            shm.unlink() 
+            return out
+    else:
+        for i in range(x_n_rows):          
+            j_start= i        
+            if x_n_rows != y_n_rows:
+                j_start = 0
+            # call the main function
+            res = gower_get(X_cat[i,:], 
+                              X_num[i,:],
+                              Y_cat[j_start:y_n_rows,:],
+                              Y_num[j_start:y_n_rows,:],
+                              weight_cat,
+                              weight_num,
+                              weight_sum,
+                              cat_features,
+                              num_ranges,
+                              num_max) 
+            #print(res)
+            out[i,j_start:]=res
+            if x_n_rows == y_n_rows: out[i:,j_start]=res
+ 
+    return out
+    
+def bachifier(n_jobs, x_n_rows,y_n_rows,X_cat,X_num,Y_cat,Y_num,
+                weight_cat,weight_num,weight_sum,cat_features,num_ranges,num_max,shm_name):
+    batches = []
+    X_cat_batches = np.array_split(X_cat, n_jobs)
+    X_num_batches = np.array_split(X_num, n_jobs)
+    
+    if x_n_rows != y_n_rows:
+        Y_cat_batches = [Y_cat[0:y_n_rows,:]]*len(X_cat_batches) 
+        Y_num_batches = [Y_num[0:y_n_rows,:]]*len(X_cat_batches) 
+    else:
+        batches_sizes = np.cumsum([len(b) for b in X_cat_batches])
+        Y_cat_batches = []
+        Y_num_batches = []
+        for i in np.concatenate(([0],batches_sizes)):    
+            Y_cat_batches.append(Y_cat[i:y_n_rows,:])
+            Y_num_batches.append(Y_num[i:y_n_rows,:])
+    
+    batches_starts = np.cumsum([len(b) for b in X_cat_batches])[:-1]
+    batches_starts = np.concatenate(([0],batches_starts))       
+    for i in range(len(X_cat_batches)):          
+        batches.append((batches_starts[i],x_n_rows,y_n_rows,
+                      X_cat_batches[i], 
+                      X_num_batches[i],
+                      Y_cat_batches[i],
+                      Y_num_batches[i],
+                      weight_cat,
+                      weight_num,
+                      weight_sum,
+                      cat_features,
+                      num_ranges,
+                      num_max,shm_name))                      
+    return batches
+    
+def gower_get_loop(j_start_real,x_n_rows,y_n_rows,X_cat,X_num,Y_cat,Y_num,
+                weight_cat,weight_num,weight_sum,cat_features,num_ranges,num_max,shm_name):
+    result = []
+    shm = shared_memory.SharedMemory(name=shm_name)
+    out = np.ndarray((x_n_rows,y_n_rows), dtype=np.float32, buffer=shm.buf)
+    for i in range(X_num.shape[0]):          
         j_start= i        
         if x_n_rows != y_n_rows:
             j_start = 0
         # call the main function
+
         res = gower_get(X_cat[i,:], 
                           X_num[i,:],
                           Y_cat[j_start:y_n_rows,:],
@@ -96,13 +187,13 @@ def gower_matrix(data_x, data_y=None, weight=None, cat_features=None):
                           cat_features,
                           num_ranges,
                           num_max) 
-        #print(res)
-        out[i,j_start:]=res
-        if x_n_rows == y_n_rows: out[i:,j_start]=res
-        
-    return out
+    
+        out[i+j_start_real,j_start+j_start_real:]=res
+        if x_n_rows == y_n_rows: out[i+j_start_real:,j_start+j_start_real]=res
 
+    shm.close()
 
+       
 def gower_get(xi_cat,xi_num,xj_cat,xj_num,feature_weight_cat,
               feature_weight_num,feature_weight_sum,categorical_features,
               ranges_of_numeric,max_of_numeric ):
@@ -131,9 +222,9 @@ def smallest_indices(ary, n):
     values = flat[indices]
     return {'index': indices, 'values': values}
 
-def gower_topn(data_x, data_y=None, weight=None, cat_features=None, n = 5):
+def gower_topn(data_x, data_y=None, weight=None, cat_features=None, n = 5, n_jobs=None):
     
     if data_x.shape[0] >= 2: TypeError("Only support `data_x` of 1 row. ")  
-    dm = gower_matrix(data_x, data_y, weight, cat_features)
+    dm = gower_matrix(data_x, data_y, weight, cat_features, n_jobs=n_jobs)
           
     return smallest_indices(np.nan_to_num(dm[0], nan=1),n)
